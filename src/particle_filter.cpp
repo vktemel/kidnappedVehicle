@@ -112,6 +112,88 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
    *   and the following is a good resource for the actual equation to implement
    *   (look at equation 3.33) http://planning.cs.uiuc.edu/node99.html
    */
+  // for each particle
+    // calculate weights of each observation
+    // get product of all weights
+    // update weights of the particle
+  for(auto& particle : particles)
+  {
+    vector<LandmarkObs> transformed_observations;
+    // transform each observation to map coordinates
+    for(auto& obs : observations)
+    {
+      LandmarkObs temp; 
+      temp.x = particle.x + (obs.x*cos(particle.theta) - obs.y*sin(particle.theta));
+      temp.y = particle.y + (obs.y*cos(particle.theta) + obs.x*sin(particle.theta));
+      transformed_observations.push_back(temp); 
+    }
+
+    // filter out relevant landmarks for the particle based on sensor_range
+    vector<LandmarkObs> relevant_landmarks;
+    for(auto& landmark : map_landmarks.landmark_list)
+    {
+      double dist_to_landmark = dist(landmark.x_f, landmark.y_f, particle.x, particle.y);
+      if(dist_to_landmark <= sensor_range)
+      {
+        LandmarkObs temp;
+        temp.x = landmark.x_f;
+        temp.y = landmark.y_f; 
+        temp.id = landmark.id_i;
+        relevant_landmarks.push_back(temp);
+      }
+    }
+
+    // associate observations to landmarks
+    //dataAssociation(relevant_landmarks, transformed_observations);
+    vector<int> associations; 
+    vector<double> sense_x_vals;
+    vector<double> sense_y_vals;
+
+    double new_weight = 1.0;
+    
+    for(auto& obs : transformed_observations)
+    {
+      int id_closest;
+      double min_dist = 1e8;
+      double x_val;
+      double y_val;
+
+      for(auto& landmark : relevant_landmarks)
+      {
+        double temp_dist = dist(landmark.x, landmark.y, obs.x, obs.y);
+
+        if(temp_dist < min_dist)
+        {
+          min_dist = temp_dist;
+          id_closest = landmark.id;
+          x_val = landmark.x;
+          y_val = landmark.y;
+        }  
+      }
+
+      obs.id = id_closest; 
+      particle.associations.push_back(id_closest);
+      particle.sense_x.push_back(x_val);
+      particle.sense_y.push_back(y_val);
+
+
+      double var_x = std_landmark[0]*std_landmark[0];
+      double var_y = std_landmark[1]*std_landmark[1];
+      double covar_xy = std_landmark[0]*std_landmark[1];
+
+      double diff_x = obs.x - x_val;
+      double diff_y = obs.y - y_val;
+
+      double temp_weight = (1/(2*M_PI*covar_xy))*exp(-1*((diff_x*diff_x)/(2*var_x) + (diff_y*diff_y)/(2*var_y)));
+
+      new_weight *= temp_weight;
+
+    }
+    std::cin.ignore();
+    std::cout << "particle old weight: " << double(particle.weight) << std::endl;
+    particle.weight = new_weight;
+    std::cout << "particle new weight: " << double(particle.weight) << std::endl;
+  }
 
 }
 
