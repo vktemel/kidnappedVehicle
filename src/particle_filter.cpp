@@ -113,7 +113,7 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
                                    const vector<LandmarkObs> &observations, 
                                    const Map &map_landmarks) {
-                                     
+
   // Weights will be updated for each particle
   for(auto& particle : particles)
   {
@@ -220,29 +220,27 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 }
 
 void ParticleFilter::resample() {
-  /**
-   * TODO: Resample particles with replacement with probability proportional 
-   *   to their weight. 
-   * NOTE: You may find std::discrete_distribution helpful here.
-   *   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
-   */
+  
+  // Resampling will be done proportional to the weight of each particle
+  // First create a vector that stores weights of each particle
   vector<double> particle_weights;
   for(auto& particle : particles)
   {
     particle_weights.push_back(particle.weight);
   }
 
-  std::default_random_engine engine; 
+  // Create a discrete distribution based on the particle weights
   std::discrete_distribution<int> d{particle_weights.begin(),particle_weights.end()};  
 
+  // Create a vector for new particles that are sampled accordingly
   std::vector<Particle> new_particles; 
-
   for(int i=0; i<num_particles; i++)
   {
-    int new_particle_number = d(engine);
-    new_particles.push_back(particles[new_particle_number]);
+    // Add particle based on the result of the discrete distribution called by the random engine
+    new_particles.push_back(particles[d(engine)]);
   }
 
+  // set particles to the newly selected particles
   particles = new_particles;
 }
 
