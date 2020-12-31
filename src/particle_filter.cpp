@@ -29,12 +29,10 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
    * y and theta. The number of particles created is defined by the num_particles
    * parameter. 
    */
-  
+
   // Set the number of particles
   num_particles = 20;
 
-  // Use the default random engine
-  std::default_random_engine engine;
   // create normal distributions for x, y, and theta based on inputs of this function
   // these will be used to add random Gaussian noise for each particle
   std::normal_distribution<double> dist_x{x, std[0]};
@@ -74,25 +72,27 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
    *  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
    *  http://www.cplusplus.com/reference/random/default_random_engine/
    */
-  // if yaw rate is positive
-  // xf = x0 + v/thetadot (sin (theta+thetadot*dt) - sin(theta))
-  // yf = y0 + v/thetadot (cos(theta) - cos(theta+thetadot*dt))
-  // thetaf = theta + thetadot*dt
+
+  // Calculate the change in yaw and distance by multiplying with delta_t
   double yaw_change = yaw_rate*delta_t;
   double distance = velocity*delta_t;
-  std::default_random_engine engine;
+
+  // create normal distributions for adding noise based on standard deviations
   std::normal_distribution<double> dist_x{0, std_pos[0]};
   std::normal_distribution<double> dist_y{0, std_pos[1]};
   std::normal_distribution<double> dist_theta{0, std_pos[2]};
 
+  // prediction will be done for each particle
   for(int i=0; i<num_particles; i++)
   {
+    // if yaw rate is not equal to zero, consider change in yaw rate in updating of particles
     if(yaw_rate != 0.0F)
     {
       particles[i].x = (particles[i].x + (velocity/yaw_rate)*(sin(particles[i].theta + yaw_change) - sin(particles[i].theta))) + dist_x(engine);
       particles[i].y = (particles[i].y + (velocity/yaw_rate)*(cos(particles[i].theta) - cos(particles[i].theta + yaw_change))) + dist_y(engine);
       particles[i].theta = (particles[i].theta + yaw_change) +	 dist_theta(engine);
     }
+    // otherwise (if yaw rate is zero), then update particles with distance travelled on the current heading
     else
     {
       particles[i].x = particles[i].x + distance*cos(particles[i].theta);
