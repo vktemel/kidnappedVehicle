@@ -189,10 +189,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       new_weight *= temp_weight;
 
     }
-    std::cin.ignore();
-    std::cout << "particle old weight: " << double(particle.weight) << std::endl;
     particle.weight = new_weight;
-    std::cout << "particle new weight: " << double(particle.weight) << std::endl;
   }
 
 }
@@ -204,7 +201,24 @@ void ParticleFilter::resample() {
    * NOTE: You may find std::discrete_distribution helpful here.
    *   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
    */
+  vector<double> particle_weights;
+  for(auto& particle : particles)
+  {
+    particle_weights.push_back(particle.weight);
+  }
 
+  std::default_random_engine engine; 
+  std::discrete_distribution<int> d{particle_weights.begin(),particle_weights.end()};  
+
+  std::vector<Particle> new_particles; 
+
+  for(int i=0; i<num_particles; i++)
+  {
+    int new_particle_number = d(engine);
+    new_particles.push_back(particles[new_particle_number]);
+  }
+
+  particles = new_particles;
 }
 
 void ParticleFilter::SetAssociations(Particle& particle, 
