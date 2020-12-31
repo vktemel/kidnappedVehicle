@@ -23,32 +23,44 @@ using std::vector;
 
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
   /**
-   * TODO: Set the number of particles. Initialize all particles to 
-   *   first position (based on estimates of x, y, theta and their uncertainties
-   *   from GPS) and all weights to 1. 
-   * TODO: Add random Gaussian noise to each particle.
-   * NOTE: Consult particle_filter.h for more information about this method 
-   *   (and others in this file).
+   * This function receives the initial x, y, theta positions and their standard
+   * deviations, and then creates a list of particles. The particles are created
+   * by adding a random Gaussian noise to the given initialization values for x,
+   * y and theta. The number of particles created is defined by the num_particles
+   * parameter. 
    */
-  num_particles = 10;  // TODO: Set the number of particles
+  
+  // Set the number of particles
+  num_particles = 20;
 
+  // Use the default random engine
   std::default_random_engine engine;
-
+  // create normal distributions for x, y, and theta based on inputs of this function
+  // these will be used to add random Gaussian noise for each particle
   std::normal_distribution<double> dist_x{x, std[0]};
   std::normal_distribution<double> dist_y{y, std[1]};
   std::normal_distribution<double> dist_theta{theta, std[2]};
 
+  // add num_particles particles in initialization
   for(int i=0; i<num_particles; i++)
   {
-    Particle temp;
-    temp.id = i;
-    temp.x = dist_x(engine);
-    temp.y = dist_y(engine);
-    temp.theta = dist_theta(engine);
-    temp.weight = double(1.0);
-    particles.push_back(temp);
-    weights.push_back(double(1.0));
+    // create a temporary particle
+    Particle t_particle;
+
+    // assign properties of the particle
+    t_particle.id = i;
+    t_particle.x = dist_x(engine);
+    t_particle.y = dist_y(engine);
+    t_particle.theta = dist_theta(engine);
+    t_particle.weight = double(1.0);
+
+    // add the temporary particle to the overall vector of particles
+    particles.push_back(t_particle);
+    // add the weight to the vector of weights
+    weights.push_back(t_particle.weight);
   }
+
+  // set initialization flag to true
   is_initialized = true; 
 
 }
@@ -62,12 +74,12 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
    *  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
    *  http://www.cplusplus.com/reference/random/default_random_engine/
    */
-
+  // if yaw rate is positive
   // xf = x0 + v/thetadot (sin (theta+thetadot*dt) - sin(theta))
   // yf = y0 + v/thetadot (cos(theta) - cos(theta+thetadot*dt))
   // thetaf = theta + thetadot*dt
   double yaw_change = yaw_rate*delta_t;
-  double distance = velocity;
+  double distance = velocity*delta_t;
   std::default_random_engine engine;
   std::normal_distribution<double> dist_x{0, std_pos[0]};
   std::normal_distribution<double> dist_y{0, std_pos[1]};
@@ -75,11 +87,18 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
 
   for(int i=0; i<num_particles; i++)
   {
-    particles[i].x = (particles[i].x + (distance/yaw_rate)*(sin(particles[i].theta + yaw_change) - sin(particles[i].theta))) + dist_x(engine);
-
-    particles[i].y = (particles[i].y + (distance/yaw_rate)*(cos(particles[i].theta) - cos(particles[i].theta + yaw_change))) + dist_y(engine);
-
-    particles[i].theta = (particles[i].theta + yaw_change) + dist_theta(engine);
+    if(yaw_rate != 0.0F)
+    {
+      particles[i].x = (particles[i].x + (velocity/yaw_rate)*(sin(particles[i].theta + yaw_change) - sin(particles[i].theta))) + dist_x(engine);
+      particles[i].y = (particles[i].y + (velocity/yaw_rate)*(cos(particles[i].theta) - cos(particles[i].theta + yaw_change))) + dist_y(engine);
+      particles[i].theta = (particles[i].theta + yaw_change) +	 dist_theta(engine);
+    }
+    else
+    {
+      particles[i].x = particles[i].x + distance*cos(particles[i].theta);
+      particles[i].y = particles[i].y + distance*sin(particles[i].theta);
+      // no change in theta
+    }
   }
 }
 
@@ -151,6 +170,9 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
     double new_weight = 1.0;
     
+    std::vector<int> t_associations;
+    std::vector<double> t_sense_x, t_sense_y;
+    
     for(auto& obs : transformed_observations)
     {
       int id_closest;
@@ -172,9 +194,9 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       }
 
       obs.id = id_closest; 
-      particle.associations.push_back(id_closest);
-      particle.sense_x.push_back(x_val);
-      particle.sense_y.push_back(y_val);
+      t_associations.push_back(id_closest);
+      t_sense_x.push_back(x_val);
+      t_sense_y.push_back(y_val);
 
 
       double var_x = std_landmark[0]*std_landmark[0];
@@ -189,6 +211,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       new_weight *= temp_weight;
 
     }
+    SetAssociations(particle, t_associations, t_sense_x, t_sense_y);
     particle.weight = new_weight;
   }
 
