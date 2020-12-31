@@ -65,14 +65,6 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 
 void ParticleFilter::prediction(double delta_t, double std_pos[], 
                                 double velocity, double yaw_rate) {
-  /**
-   * TODO: Add measurements to each particle and add random Gaussian noise.
-   * NOTE: When adding noise you may find std::normal_distribution 
-   *   and std::default_random_engine useful.
-   *  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
-   *  http://www.cplusplus.com/reference/random/default_random_engine/
-   */
-
   // Calculate the change in yaw and distance by multiplying with delta_t
   double yaw_change = yaw_rate*delta_t;
   double distance = velocity*delta_t;
@@ -83,21 +75,22 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
   std::normal_distribution<double> dist_theta{0, std_pos[2]};
 
   // prediction will be done for each particle
-  for(int i=0; i<num_particles; i++)
+  for(auto& particle : particles)
   {
     // if yaw rate is not equal to zero, consider change in yaw rate in updating of particles
     if(yaw_rate != 0.0F)
     {
-      particles[i].x = (particles[i].x + (velocity/yaw_rate)*(sin(particles[i].theta + yaw_change) - sin(particles[i].theta))) + dist_x(engine);
-      particles[i].y = (particles[i].y + (velocity/yaw_rate)*(cos(particles[i].theta) - cos(particles[i].theta + yaw_change))) + dist_y(engine);
-      particles[i].theta = (particles[i].theta + yaw_change) +	 dist_theta(engine);
+      particle.x = particle.x + (velocity/yaw_rate) * (sin(particle.theta + yaw_change) - sin(particle.theta)) + dist_x(engine);
+      particle.y = particle.y + (velocity/yaw_rate) * (cos(particle.theta) - cos(particle.theta + yaw_change)) + dist_y(engine);
+      particle.theta = particle.theta + yaw_change + dist_theta(engine);
     }
     // otherwise (if yaw rate is zero), then update particles with distance travelled on the current heading
     else
     {
-      particles[i].x = particles[i].x + distance*cos(particles[i].theta);
-      particles[i].y = particles[i].y + distance*sin(particles[i].theta);
-      // no change in theta
+      particle.x = particle.x + distance*cos(particle.theta) + dist_x(engine);
+      particle.y = particle.y + distance*sin(particle.theta) + dist_y(engine);
+      // although there's yaw rate is 0, theta is updated with the noise component
+      particle.theta = particle.theta + dist_theta(engine); 
     }
   }
 }
