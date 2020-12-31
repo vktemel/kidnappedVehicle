@@ -69,8 +69,6 @@ int main() {
             double sense_y = std::stod(j[1]["sense_y"].get<string>());
             double sense_theta = std::stod(j[1]["sense_theta"].get<string>());
 
-            std::cout << "sense x: " << sense_x << ", sense y: " << sense_y << ", sense theta: " << sense_theta << std::endl;
-
             pf.init(sense_x, sense_y, sense_theta, sigma_pos);
           } else {
             // Predict the vehicle's next state from previous 
@@ -79,12 +77,7 @@ int main() {
             double previous_yawrate = std::stod(j[1]["previous_yawrate"].get<string>());
 
             pf.prediction(delta_t, sigma_pos, previous_velocity, previous_yawrate);
-            std::cout << "dt: " << delta_t << ", prev. v: " << previous_velocity << ", prev. yaw: " << previous_yawrate << std::endl;
           }
-
-          std::cout << "x: " << pf.particles[0].x 
-                    << ", y: " << pf.particles[0].y
-                    << ", theta: " << pf.particles[0].theta << std::endl;
 
           // receive noisy observation data from the simulator	
           // sense_observations in JSON format 
