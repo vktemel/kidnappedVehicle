@@ -105,46 +105,44 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
    *   probably find it useful to implement this method and use it as a helper 
    *   during the updateWeights phase.
    */
+  // Unused.
+  
 
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
                                    const vector<LandmarkObs> &observations, 
                                    const Map &map_landmarks) {
-  /**
-   * TODO: Update the weights of each particle using a mult-variate Gaussian 
-   *   distribution. You can read more about this distribution here: 
-   *   https://en.wikipedia.org/wiki/Multivariate_normal_distribution
-   * NOTE: The observations are given in the VEHICLE'S coordinate system. 
-   *   Your particles are located according to the MAP'S coordinate system. 
-   *   You will need to transform between the two systems. Keep in mind that
-   *   this transformation requires both rotation AND translation (but no scaling).
-   *   The following is a good resource for the theory:
-   *   https://www.willamette.edu/~gorr/classes/GeneralGraphics/Transforms/transforms2d.htm
-   *   and the following is a good resource for the actual equation to implement
-   *   (look at equation 3.33) http://planning.cs.uiuc.edu/node99.html
-   */
-  // for each particle
-    // calculate weights of each observation
-    // get product of all weights
-    // update weights of the particle
+                                     
+  // Weights will be updated for each particle
   for(auto& particle : particles)
   {
+    // First step is to transform the observations for the given particle
+    // Create a vector for transformed observations
     vector<LandmarkObs> transformed_observations;
-    // transform each observation to map coordinates
+
+    // Transformation will be applied to each observation
     for(auto& obs : observations)
     {
+      // Create a temporary Landmark observation for transformation
       LandmarkObs temp; 
+      
+      // Transform x and y according to the heading of the particle
       temp.x = particle.x + (obs.x*cos(particle.theta) - obs.y*sin(particle.theta));
       temp.y = particle.y + (obs.y*cos(particle.theta) + obs.x*sin(particle.theta));
+      
+      // Add to transformed observations vector
       transformed_observations.push_back(temp); 
     }
 
-    // filter out relevant landmarks for the particle based on sensor_range
+    // To make function more efficient, only landmarks within the sensor range will be considered.
+    // Vehicle sensor range is assumed to be equal for all 360 degree around the vehicle
     vector<LandmarkObs> relevant_landmarks;
     for(auto& landmark : map_landmarks.landmark_list)
     {
+      // calculate distance to landmark using the helper function
       double dist_to_landmark = dist(landmark.x_f, landmark.y_f, particle.x, particle.y);
+      // if the landmark is within the sensor range of the particle, add to relevant landmarks
       if(dist_to_landmark <= sensor_range)
       {
         LandmarkObs temp;
@@ -155,28 +153,32 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       }
     }
 
-    // associate observations to landmarks
-    //dataAssociation(relevant_landmarks, transformed_observations);
-    vector<int> associations; 
-    vector<double> sense_x_vals;
-    vector<double> sense_y_vals;
-
-    double new_weight = 1.0;
+    // Update weights for the particle
+    // First, create a temporary variable for new weight
+    double t_weight = 1.0;
     
+    // Create temporary vectors for associations and sensed x and y
     std::vector<int> t_associations;
     std::vector<double> t_sense_x, t_sense_y;
     
+    // Updating weights for particle will be done for each observation
     for(auto& obs : transformed_observations)
     {
+      // First step is to find the closest landmark for the given observation
       int id_closest;
+      // Iniitalize minimum distance to a very high value
       double min_dist = 1e8;
-      double x_val;
-      double y_val;
+      double x_val, y_val;
 
+      // Find the closest landmark for this observation by checking distance to each landmark
       for(auto& landmark : relevant_landmarks)
       {
+        // Calculate the distance using helper function
         double temp_dist = dist(landmark.x, landmark.y, obs.x, obs.y);
 
+        // If the newly calculated distance is smaller than the previously found minimum distance
+        // Store the properties of that landmark and update the minimum distance
+        // Otherwise, ignore the landmark
         if(temp_dist < min_dist)
         {
           min_dist = temp_dist;
@@ -186,26 +188,33 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         }  
       }
 
+      // Update the id of the observation, and add the associations and sensed x, y to the vectors
       obs.id = id_closest; 
       t_associations.push_back(id_closest);
       t_sense_x.push_back(x_val);
       t_sense_y.push_back(y_val);
 
-
+      // Calculate the weight using the multivariate Gaussian distribution, based on the properties
+      // of the the observation and the sigma values of the landmark
       double var_x = std_landmark[0]*std_landmark[0];
       double var_y = std_landmark[1]*std_landmark[1];
       double covar_xy = std_landmark[0]*std_landmark[1];
 
       double diff_x = obs.x - x_val;
       double diff_y = obs.y - y_val;
+      double norm = (1/(2*M_PI*covar_xy));
 
-      double temp_weight = (1/(2*M_PI*covar_xy))*exp(-1*((diff_x*diff_x)/(2*var_x) + (diff_y*diff_y)/(2*var_y)));
+      double obs_weight = norm*exp(-1*((diff_x*diff_x)/(2*var_x) + (diff_y*diff_y)/(2*var_y)));
 
-      new_weight *= temp_weight;
+      // weight of the particle will be product of all calculated weights
+      t_weight *= obs_weight;
 
     }
+    // set the associations and the sensed values to the particle
     SetAssociations(particle, t_associations, t_sense_x, t_sense_y);
-    particle.weight = new_weight;
+
+    // update particle weight
+    particle.weight = t_weight;
   }
 
 }
